@@ -27,6 +27,8 @@ selected_tile = (None, None)
 turn = 0
 lightened_tiles = []
 temp_game = []
+tiles_of_players = [[], []]
+valid_moves_called = 0
 
 
 def add_tuples(tuple1, tuple2):
@@ -113,6 +115,7 @@ def move_piece(initial, final):
         game[fy][fx] = game[iy][ix]
         game[iy][ix] = -1
         turn = int(not bool(turn))
+        update_tile_of_players()
 
 
 def get_tile_value(tile):
@@ -154,8 +157,10 @@ def get_tile_player(tile):
 
 
 def get_valid_moves(piece, initial, check_free=True):
+    global valid_moves_called
     global game
     global temp_game
+    valid_moves_called += 1
     y, x = initial
     res = []
     original_piece = piece
@@ -206,12 +211,12 @@ def get_valid_moves(piece, initial, check_free=True):
     if(check_free):
         temp_game = copy.deepcopy(game)
 
-        if piece == 0:
-            print(res)
+        # if piece == 0:
+        #     print(res)
         res = list(
             filter(lambda tile: not is_move_giving_check(initial, tile), res))
-        if piece == 0:
-            print(res)
+        # if piece == 0:
+        #     print(res)
         game = copy.deepcopy(temp_game)
     return res
 
@@ -233,27 +238,18 @@ def is_king_under_attack(king_tile):
     global game
     ky, kx = king_tile
     king = temp_game[ky][kx]
-    opponent_pieces = [0, 1, 2, 3, 4, 5] if turn == 1 else [6, 7, 8, 9, 10, 11]
-    # for i in range(0, 8):
-    #     for j in range(0, 8):
-    #         if temp_game[i][j] == king:
-    #             king_tile = (i, j)
-    opponent_piece_tiles = []
-    for i in range(0, 8):
-        for j in range(0, 8):
-            if game[i][j] in opponent_pieces:
-                opponent_piece_tiles.append((i, j))
+    opponent_piece_tiles = tiles_of_players[0] if turn == 1 else tiles_of_players[0]
 
     attacked_tiles = list(map(lambda tile: get_valid_moves(
         game[tile[0]][tile[1]], tile, False), opponent_piece_tiles))
-    print(king_tile)
+    # print(king_tile)
     lightened_tiles = []
     for tile_list in attacked_tiles:
         # for t in tile_list:
         #     lightened_tiles.append(t)
         if king_tile in tile_list:
             # print("True")
-            print(tile_list, tile_list)
+            # print(tile_list, tile_list)
             return True
     return False
 
@@ -313,9 +309,14 @@ def on_tile_click():
 
 def draw_board():
     global lightened_tiles
+    h, k = selected_tile
+    moves = []
+    if selected_tile != (None, None):
+        selected_piece_value = game[h][k]
+        moves = get_valid_moves(
+            selected_piece_value, selected_tile)
     for i in range(0, 8):
         for j in range(0, 8):
-            moves = []
             piece_value = game[i][j]
             color = get_tile_color(i, j)
             # Draw rectangle
@@ -329,11 +330,6 @@ def draw_board():
                 image_y = start_y + (TILE_SIZE - PIECE_SIZE)/2
                 screen.blit(piece_image, (image_x, image_y))
 
-            h, k = selected_tile
-            if selected_tile != (None, None):
-                selected_piece_value = game[h][k] % 6
-                moves = get_valid_moves(
-                    selected_piece_value, selected_tile)
             if((i, j) == selected_tile):
                 select_tile(i, j)
             elif ((i, j) == hovered_tile):
@@ -352,9 +348,20 @@ def draw_board():
                                 special_flags=pygame.BLEND_RGBA_SUB)
 
 
+def update_tile_of_players():
+    global tiles_of_players
+    for i in range(0, 8):
+        for j in range(0, 8):
+            tile_player = get_tile_player((i, j))
+            if tile_player == 0 or tile_player == 1:
+                tiles_of_players[tile_player].append((i, j))
+
+
 def update_game():
+    print("updated")
     draw_board()
     pygame.display.update()
+    print(valid_moves_called)
 
 
 while is_running:
@@ -365,6 +372,7 @@ while is_running:
         if event.type == pygame.MOUSEMOTION:
             mouse_pos = pygame.mouse.get_pos()
             update_hovered_tile()
+            update_game()
         if event.type == pygame.MOUSEBUTTONDOWN:
             if(mouse.get_pressed() == (1, 0, 0)):
                 on_tile_click()
