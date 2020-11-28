@@ -82,7 +82,6 @@ def get_valid_moves(piece, initial, check_free=True):
         res = list(map(lambda d: add_tuples(d, initial), dirs))
         if check_free:
             if can_castle(1):
-                print("can_castle")
                 res.append(add_tuples(initial, (0, 2)))
             if can_castle(-1):
                 res.append(add_tuples(initial, (0, -2)))
@@ -187,13 +186,10 @@ def can_castle(dir):
         king_tile, (0, dir)), add_tuples(king_tile, (0, dir * 2))]
     data.temp_game = copy.deepcopy(data.game)
     for tile in king_movement_tiles:
-        data.game = copy.deepcopy(data.game)
-        swap_piece(king_tile, tile)
-        if is_king_under_attack(king_tile):
+        if is_move_giving_check(king_tile, tile):
             is_castling_check_free = False
-            break
     data.game = copy.deepcopy(data.temp_game)
-    return is_castling_check_free and are_tiles_empty and pieces_not_moved
+    return is_castling_check_free and are_tiles_empty and pieces_not_moved and not is_king_under_attack(king_tile)
 
 
 def on_tile_click():
