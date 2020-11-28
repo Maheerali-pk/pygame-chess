@@ -12,22 +12,11 @@ import copy
 from helpers import add_tuple_list, add_tuples
 from consts import COLOR1, COLOR2, PIECE_SIZE, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE
 from images import images
-from game_helpers import get_piece_player, get_tile_color
-
-data = Data()
-
+from game_helpers import add_opposite_dirs, get_king_tile, get_tile_player, lighten_tile, get_piece_player, get_tile_color, get_tile_value, get_moves_in_dir
+from data import data
 
 pygame.init()
 font.init()
-f = pygame.font.Font("seguisym.ttf", 64)
-valid_moves_called = 0
-
-
-def lighten_tile(tile):
-    s = pygame.Surface((TILE_SIZE, TILE_SIZE),
-                       pygame.SRCALPHA)   # per-pixel alpha
-    s.fill((0, 255, 0, 50))
-    data.screen.blit(s, (tile[1] * TILE_SIZE, tile[0] * TILE_SIZE))
 
 
 def update_hovered_tile():
@@ -35,69 +24,23 @@ def update_hovered_tile():
         int(data.mouse_pos[1]/TILE_SIZE), int(data.mouse_pos[0]/TILE_SIZE))
 
 
-def hover_tile(i, j):
-    dark = pygame.Surface((TILE_SIZE, TILE_SIZE),
-                          flags=pygame.SRCALPHA)
-    dark.fill((25, 25, 25, 0))
-    data.screen.blit(dark, (j * TILE_SIZE, i * TILE_SIZE),
-                     special_flags=pygame.BLEND_RGBA_SUB)
-
-
-def select_tile(i, j):
-    dark = pygame.Surface((TILE_SIZE, TILE_SIZE),
-                          flags=pygame.SRCALPHA)
-    dark.fill((0, 0, 0, 0))
-    data.screen.blit(dark, (j * TILE_SIZE, i * TILE_SIZE),
-                     special_flags=pygame.BLEND_RGBA_SUB)
+def swap_piece(initial, final):
+    iy, ix = initial
+    fy, fx = final
+    data.game[fy][fx] = data.game[iy][ix]
+    data.game[iy][ix] = -1
 
 
 def move_piece(initial, final):
-    piece = data.game[initial[0]][initial[1]]
-    iy, ix = initial
-    fy, fx = final
-    if can_piece_move(piece, initial, final):
-        data.game[fy][fx] = data.game[iy][ix]
-        data.game[iy][ix] = -1
+    piece = get_tile_value(initial)
+    valid_moves = get_valid_moves(piece, initial)
+    if final in valid_moves:
+        data.selected_tile = (None, None)
+        swap_piece(initial, final)
+        # print(data.game)
+        # print(data.selected_tile)
         data.turn = int(not bool(data.turn))
         update_tile_of_players()
-
-
-def get_tile_value(tile):
-    if(tile[0] > 7 or tile[1] > 7 or tile[1] < 0 or tile[0] < 0):
-        return None
-    return data.game[tile[0]][tile[1]]
-
-
-def get_moves_in_dir(initial, directions):
-    moves = []
-    for d in directions:
-        is_way_open = True
-        tile = (initial[0], initial[1])
-        i = 0
-        while is_way_open:
-            i += 1
-            tile = add_tuples(tile, d)
-
-            tile_value = get_tile_value(tile)
-            if tile_value == None:
-                is_way_open = False
-            elif tile_value != -1:
-                moves.append(tile)
-                is_way_open = False
-            else:
-                moves.append(tile)
-
-            if(i > 100):
-                break
-    return moves
-
-
-def add_opposite_dirs(arr):
-    return arr + list(map(lambda d: (-d[0], -d[1]), arr))
-
-
-def get_tile_player(tile):
-    return get_piece_player(get_tile_value(tile))
 
 
 def get_valid_moves(piece, initial, check_free=True):
@@ -151,13 +94,8 @@ def get_valid_moves(piece, initial, check_free=True):
         get_tile_value(tile)) != player, res))
     if(check_free):
         data.temp_game = copy.deepcopy(data.game)
-
-        # if piece == 0:
-        #     print(res)
         res = list(
             filter(lambda tile: not is_move_giving_check(initial, tile), res))
-        # if piece == 0:
-        #     print(res)
         data.game = copy.deepcopy(data.temp_game)
     return res
 
@@ -175,54 +113,30 @@ def get_valid_moves(piece, initial, check_free=True):
 
 
 def is_king_under_attack(king_tile):
-    # global data.game
     ky, kx = king_tile
     king = data.temp_game[ky][kx]
     opponent_piece_tiles = data.tiles_of_players[0] if data.turn == 1 else data.tiles_of_players[1]
 
     attacked_tiles = list(map(lambda tile: get_valid_moves(
         data.game[tile[0]][tile[1]], tile, False), opponent_piece_tiles))
-    # print(king_tile)
-    lightened_tiles = []
+
     for tile_list in attacked_tiles:
-        # for t in tile_list:
-        #     lightened_tiles.append(t)
         if king_tile in tile_list:
-            # print("True")
-            # print(tile_list, tile_list)
             return True
     return False
 
 
 def is_move_giving_check(initial, final):
-    king = 0 if data.turn == 0 else 6
-    king_tile = (None, None)
-
     data.game = copy.deepcopy(data.temp_game)
-    data.game[final[0]][final[1]] = data.game[initial[0]][initial[1]]
-    data.game[initial[0]][initial[1]] = -1
-
-    for i in range(0, 8):
-        for j in range(0, 8):
-            if data.game[i][j] == king:
-                king_tile = (i, j)
+    swap_piece(initial, final)
+    king_tile = get_king_tile()
     print(king_tile)
     return is_king_under_attack(king_tile)
 
 
-def can_piece_move(piece, initial, final):
-    iy, ix = initial
-    fy, fx = final
-    valid_moves = get_valid_moves(piece, initial)
-    for move in valid_moves:
-        if(final == move):
-            data.selected_tile = (None, None)
-            return True
-    return False
-
-
 def on_tile_click():
     i, j = data.hovered_tile
+    print(data.hovered_tile)
     tile1_player = get_piece_player(data.game[i][j])
     # print(player, data.game[i][j])
 
@@ -244,44 +158,54 @@ def on_tile_click():
             data.selected_tile = (data.hovered_tile[0], data.hovered_tile[1])
 
 
+def set_tile_brightness(tile, brightness):
+    i, j = tile
+    dark = pygame.Surface((TILE_SIZE, TILE_SIZE),
+                          flags=pygame.SRCALPHA)
+    dark.fill((brightness, brightness, brightness, 0))
+    data.screen.blit(dark, (j * TILE_SIZE, i * TILE_SIZE),
+                     special_flags=pygame.BLEND_RGBA_SUB)
+
+
 def draw_board():
-    h, k = data.selected_tile
+
+    # Get valid moves for selected tile
+    selected_tile = data.selected_tile
     moves = []
-    if data.selected_tile != (None, None):
-        selected_piece_value = data.game[h][k]
+    if selected_tile != (None, None):
+        selected_piece_value = get_tile_value(selected_tile)
         moves = get_valid_moves(
-            selected_piece_value, data.selected_tile)
+            selected_piece_value, selected_tile)
+
+    # Running 8 x 8 loop
     for i in range(0, 8):
         for j in range(0, 8):
-            piece_value = data.game[i][j]
+            piece_value = get_tile_value((i, j))
             color = get_tile_color(i, j)
             # Draw rectangle
             start_x = j * TILE_SIZE
             start_y = i * TILE_SIZE
             draw.rect(data.screen, color, pygame.Rect(
                 start_x, start_y, TILE_SIZE, TILE_SIZE))
+
+            # Draw pieces to blocks
             if(piece_value != -1):
                 piece_image = images[piece_value]
                 image_x = start_x + (TILE_SIZE - PIECE_SIZE)/2
                 image_y = start_y + (TILE_SIZE - PIECE_SIZE)/2
                 data.screen.blit(piece_image, (image_x, image_y))
 
+            # Managing selection and hovering
             if((i, j) == data.selected_tile):
-                select_tile(i, j)
+                # select_tile(i, j)
+                set_tile_brightness((i, j), 0)
             elif ((i, j) == data.hovered_tile):
-                hover_tile(i, j)
-
+                set_tile_brightness((i, j), 25)
             else:
-
                 if (i, j) in moves:
-                    # print(i, j, "selected")
                     lighten_tile((i, j))
                 else:
-                    dark = pygame.Surface((TILE_SIZE, TILE_SIZE),
-                                          flags=pygame.SRCALPHA)
-                    dark.fill((50, 50, 50, 0))
-                    data.screen.blit(dark, (j * TILE_SIZE, i * TILE_SIZE),
-                                     special_flags=pygame.BLEND_RGBA_SUB)
+                    set_tile_brightness((i, j), 50)
 
 
 def update_tile_of_players():

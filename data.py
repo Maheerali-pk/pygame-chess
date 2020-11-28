@@ -16,3 +16,6 @@ class Data:
     mouse_pos = (0, 0)
     is_running = True
     screen = display.set_mode((SCREEN_HEIGHT, SCREEN_WIDTH))
+
+
+data = Data()
