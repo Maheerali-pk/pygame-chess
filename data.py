@@ -16,6 +16,9 @@ class Data:
     mouse_pos = (0, 0)
     is_running = True
     screen = display.set_mode((SCREEN_HEIGHT, SCREEN_WIDTH))
+    king_moved = [False, False]
+    king_side_rook_moved = [False, False]
+    queen_side_rook_moved = [False, False]
 
 
 data = Data()

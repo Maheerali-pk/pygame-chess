@@ -1,19 +1,24 @@
-from data import Data
-from pygame import *
+import cmath
+import copy
+
 import pygame
 import pygame.display as display
 import pygame.draw as draw
 import pygame.font as font
 import pygame.image as image
-import pygame.transform as transform
-import pygame.time as time
 import pygame.mouse as mouse
-import copy
+import pygame.time as time
+import pygame.transform as transform
+from pygame import *
+
+from consts import (COLOR1, COLOR2, PIECE_SIZE, SCREEN_HEIGHT, SCREEN_WIDTH,
+                    TILE_SIZE)
+from data import Data, data
+from game_helpers import (add_opposite_dirs, get_king_tile, get_moves_in_dir,
+                          get_piece_player, get_tile_color, get_tile_player,
+                          get_tile_value, lighten_tile, swap_piece)
 from helpers import add_tuple_list, add_tuples
-from consts import COLOR1, COLOR2, PIECE_SIZE, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE
 from images import images
-from game_helpers import add_opposite_dirs, get_king_tile, get_tile_player, lighten_tile, get_piece_player, get_tile_color, get_tile_value, get_moves_in_dir
-from data import data
 
 pygame.init()
 font.init()
@@ -24,34 +29,63 @@ def update_hovered_tile():
         int(data.mouse_pos[1]/TILE_SIZE), int(data.mouse_pos[0]/TILE_SIZE))
 
 
-def swap_piece(initial, final):
-    iy, ix = initial
-    fy, fx = final
-    data.game[fy][fx] = data.game[iy][ix]
-    data.game[iy][ix] = -1
-
-
 def move_piece(initial, final):
     piece = get_tile_value(initial)
     valid_moves = get_valid_moves(piece, initial)
+
+    # Check for castling
     if final in valid_moves:
+
+        if piece % 6 == 0:
+            king_movement = final[1] - initial[1]
+            # castling happened
+            if abs(king_movement) == 2:
+                rook_initial = (None, None)
+                rook_final = (None, None)
+                # king_side castling happened
+                if king_movement > 0:
+                    rook_initial = (initial[0], 7)
+                    rook_final = (initial[0], 5)
+
+                # Queen side castling
+                else:
+                    rook_initial = (initial[0], 0)
+                    rook_final = (initial[0], 3)
+                swap_piece(rook_initial, rook_final)
+
+        # Update king and rook move data
+        if piece % 6 == 0:
+            data.king_moved[data.turn] = True
+        if piece % 2 == 0:
+            if initial[0] == 0:
+                data.queen_side_rook_moved[data.turn] = True
+            if initial[0] == 7:
+                data.king_side_rook_moved[data.turn] = True
+
         data.selected_tile = (None, None)
+
         swap_piece(initial, final)
         data.turn = int(not bool(data.turn))
         update_tile_of_players()
 
 
-def get_valid_moves(piece, initial, check_free=True, attacking_moves_only=False):
+def get_valid_moves(piece, initial, check_free=True):
     y, x = initial
     res = []
     original_piece = piece
     piece = piece % 6
-    player = get_piece_player(get_tile_value(initial))
+    player = get_tile_player(initial)
     if initial == (None, None):
         return []
     if piece == 0:
         dirs = add_opposite_dirs([(1, 0), (0, 1), (1, 1), (1, -1)])
         res = list(map(lambda d: add_tuples(d, initial), dirs))
+        if check_free:
+            if can_castle(1):
+                print("can_castle")
+                res.append(add_tuples(initial, (0, 2)))
+            if can_castle(-1):
+                res.append(add_tuples(initial, (0, -2)))
     elif piece == 1:
         dirs = [(1, 1), (-1, -1), (-1, 1), (1, -1),
                 (1, 0), (-1, 0), (0, 1), (0, -1)]
@@ -70,7 +104,6 @@ def get_valid_moves(piece, initial, check_free=True, attacking_moves_only=False)
         d = -1 if player == 0 else 1
         initial_row = 6 if player == 0 else 1
         not_moved = initial[0] == initial_row
-        # if not attacking_moves_only:
         first_tile = add_tuples(initial, (d, 0))
         first_tile_value = get_tile_value(first_tile)
         if(first_tile_value == -1):
@@ -99,16 +132,12 @@ def get_valid_moves(piece, initial, check_free=True, attacking_moves_only=False)
     return res
 
 
-def get_under_attack_tiles():
-    pass
-
-
 def is_king_under_attack(king_tile):
     ky, kx = king_tile
     king = data.temp_game[ky][kx]
     opponent_piece_tiles = data.tiles_of_players[0] if data.turn == 1 else data.tiles_of_players[1]
     attacked_tiles = list(map(lambda tile: get_valid_moves(
-        data.game[tile[0]][tile[1]], tile, False, True), opponent_piece_tiles))
+        data.game[tile[0]][tile[1]], tile, False), opponent_piece_tiles))
 
     for tile_list in attacked_tiles:
         if king_tile in tile_list:
@@ -119,9 +148,52 @@ def is_king_under_attack(king_tile):
 def is_move_giving_check(initial, final):
     # set game to current game position
     data.game = copy.deepcopy(data.temp_game)
+
+    # move piece to create a temparory game to pass
     swap_piece(initial, final)
     king_tile = get_king_tile()
     return is_king_under_attack(king_tile)
+
+
+def can_castle(dir):
+    # Check if tiles between rook and king are empty
+    king_tile = get_king_tile()
+    in_between_tiles = []
+    if dir == 1:
+        in_between_tiles = [add_tuples(
+            king_tile, (0, 1)), add_tuples(king_tile, (0, 2))]
+    else:
+        in_between_tiles = [add_tuples(
+            king_tile, (0, -1)), add_tuples(king_tile, (0, -2)), add_tuples(king_tile, (0, -3))]
+    are_tiles_empty = True
+    for tile in in_between_tiles:
+        if get_tile_value(tile) != -1:
+            are_tiles_empty = False
+            break
+
+    # Check if king and rook haven't motivated
+    pieces_not_moved = False
+    if dir == 1:
+        pieces_not_moved = not (
+            data.king_side_rook_moved[data.turn] or data.king_moved[data.turn])
+
+    if dir == -1:
+        pieces_not_moved = not (
+            data.queen_side_rook_moved[data.turn] or data.king_moved[data.turn])
+
+    # Is castling check free
+    is_castling_check_free = True
+    king_movement_tiles = [add_tuples(
+        king_tile, (0, dir)), add_tuples(king_tile, (0, dir * 2))]
+    data.temp_game = copy.deepcopy(data.game)
+    for tile in king_movement_tiles:
+        data.game = copy.deepcopy(data.game)
+        swap_piece(king_tile, tile)
+        if is_king_under_attack(king_tile):
+            is_castling_check_free = False
+            break
+    data.game = copy.deepcopy(data.temp_game)
+    return is_castling_check_free and are_tiles_empty and pieces_not_moved
 
 
 def on_tile_click():

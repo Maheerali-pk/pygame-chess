@@ -67,3 +67,10 @@ def get_king_tile():
         for j in range(0, 8):
             if data.game[i][j] == king:
                 return (i, j)
+
+
+def swap_piece(initial, final):
+    iy, ix = initial
+    fy, fx = final
+    data.game[fy][fx] = data.game[iy][ix]
+    data.game[iy][ix] = -1
