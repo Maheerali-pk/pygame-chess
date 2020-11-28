@@ -8,19 +8,16 @@ import pygame.transform as transform
 import pygame.time as time
 import pygame.mouse as mouse
 import copy
+from helpers import add_tuple_list, add_tuples
+from consts import COLOR1, initial_game, COLOR2, PIECE_SIZE, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE
+from images import images
+from game_helpers import get_piece_player, get_tile_color
+
 
 pygame.init()
 font.init()
 f = pygame.font.Font("seguisym.ttf", 64)
-SCREEN_HEIGHT = 600
-SCREEN_WIDTH = 600
-TILE_SIZE = SCREEN_WIDTH/8
-PIECE_SIZE = 50
-
-COLOR1 = (245, 245, 245, 0)
-COLOR2 = (181, 101, 29, 0)
 mouse_pos = (0, 0)
-images = []
 
 hovered_tile = (None, None)
 selected_tile = (None, None)
@@ -31,35 +28,9 @@ tiles_of_players = [[], []]
 valid_moves_called = 0
 
 
-def add_tuples(tuple1, tuple2):
-    res = []
-    for i in range(len(tuple1)):
-        res.append(tuple1[i] + tuple2[i])
-    return tuple(res)
-
-
-def load_images():
-    for i in range(1, 13):
-        img = image.load(f"./imgs/{i}.png")
-        transform.scale(img, (PIECE_SIZE, PIECE_SIZE))
-        images.append(img)
-
-
 screen = display.set_mode((SCREEN_HEIGHT, SCREEN_WIDTH))
 is_running = True
-game = [
-    [8, 10,  9,  7,  6,  9, 10,  8],
-    [11, 11, 11, 11, 11, 11, 11, 11],
-    [-1, -1, -1, -1, -1, -1, -1, -1],
-    [-1, -1, -1, -1, -1, -1, -1, -1],
-    [-1, -1, -1, -1, -1, -1, -1, -1],
-    [-1, -1, -1, -1, -1, -1, -1, -1],
-    [5,  5,  5,  5,  5,  5,  5,  5],
-    [2,  4,  3,  1,  0,  3,  4,  2],
-]
-
-
-load_images()
+game = copy.deepcopy(initial_game)
 
 
 def lighten_tile(tile):
@@ -67,21 +38,6 @@ def lighten_tile(tile):
                        pygame.SRCALPHA)   # per-pixel alpha
     s.fill((0, 255, 0, 50))
     screen.blit(s, (tile[1] * TILE_SIZE, tile[0] * TILE_SIZE))
-
-
-def get_piece_player(num):
-    if(num == None):
-        return None
-    if num == -1:
-        return -1
-    res = 1 if num >= 6 else 0
-    return res
-
-
-def get_tile_color(i, j):
-    is_even = (i + j) % 2 == 0
-    color = COLOR1 if is_even else COLOR2
-    return color
 
 
 def update_hovered_tile():
