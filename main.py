@@ -41,7 +41,7 @@ def move_piece(initial, final):
         update_tile_of_players()
 
 
-def get_valid_moves(piece, initial, check_free=True):
+def get_valid_moves(piece, initial, check_free=True, attacking_moves_only=False):
     y, x = initial
     res = []
     original_piece = piece
@@ -70,6 +70,7 @@ def get_valid_moves(piece, initial, check_free=True):
         d = -1 if player == 0 else 1
         initial_row = 6 if player == 0 else 1
         not_moved = initial[0] == initial_row
+        # if not attacking_moves_only:
         first_tile = add_tuples(initial, (d, 0))
         first_tile_value = get_tile_value(first_tile)
         if(first_tile_value == -1):
@@ -83,7 +84,8 @@ def get_valid_moves(piece, initial, check_free=True):
         for dia in diagonals:
             new_tile = add_tuples(initial, dia)
             tile_player = get_tile_player(new_tile)
-            if(tile_player != data.turn and tile_player != -1):
+            piece_player = get_tile_player(initial)
+            if(piece_player != tile_player and tile_player != -1):
                 res.append(new_tile)
 
     res = list(filter(lambda tile: get_tile_value(tile) != None, res))
@@ -97,16 +99,8 @@ def get_valid_moves(piece, initial, check_free=True):
     return res
 
 
-# def get_under_attack_tiles(temp_game, turn):
-#     opponent_pieces = [0, 1, 2, 3, 4, 5] if turn == 1 else [6, 7, 8, 9, 10, 11]
-#     opponent_piece_tiles = []
-#     for i in range(0, 8):
-#         for j in range(0, 8):
-#             if data.game[i][j] in opponent_pieces:
-#                 opponent_piece_tiles.append((i, j))
-
-#     attacked_tiles = list(map(lambda tile: get_valid_moves(
-#         get_tile_value(tile), tile, False), opponent_piece_tiles))
+def get_under_attack_tiles():
+    pass
 
 
 def is_king_under_attack(king_tile):
@@ -114,7 +108,7 @@ def is_king_under_attack(king_tile):
     king = data.temp_game[ky][kx]
     opponent_piece_tiles = data.tiles_of_players[0] if data.turn == 1 else data.tiles_of_players[1]
     attacked_tiles = list(map(lambda tile: get_valid_moves(
-        data.game[tile[0]][tile[1]], tile, False), opponent_piece_tiles))
+        data.game[tile[0]][tile[1]], tile, False, True), opponent_piece_tiles))
 
     for tile_list in attacked_tiles:
         if king_tile in tile_list:
@@ -123,10 +117,10 @@ def is_king_under_attack(king_tile):
 
 
 def is_move_giving_check(initial, final):
+    # set game to current game position
     data.game = copy.deepcopy(data.temp_game)
     swap_piece(initial, final)
     king_tile = get_king_tile()
-    print(king_tile)
     return is_king_under_attack(king_tile)
 
 
@@ -139,7 +133,7 @@ def on_tile_click():
 
     if selected_tile == (None, None):
         if hovered_tile_player == data.turn:
-            data.selected_tile = copy(hovered_tile)
+            data.selected_tile = copy.copy(hovered_tile)
     else:
         if hovered_tile == selected_tile:
             data.selected_tile = (None, None)
