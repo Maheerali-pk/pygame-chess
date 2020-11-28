@@ -37,14 +37,11 @@ def move_piece(initial, final):
     if final in valid_moves:
         data.selected_tile = (None, None)
         swap_piece(initial, final)
-        # print(data.game)
-        # print(data.selected_tile)
         data.turn = int(not bool(data.turn))
         update_tile_of_players()
 
 
 def get_valid_moves(piece, initial, check_free=True):
-    # valid_moves_called += 1
     y, x = initial
     res = []
     original_piece = piece
@@ -116,7 +113,6 @@ def is_king_under_attack(king_tile):
     ky, kx = king_tile
     king = data.temp_game[ky][kx]
     opponent_piece_tiles = data.tiles_of_players[0] if data.turn == 1 else data.tiles_of_players[1]
-
     attacked_tiles = list(map(lambda tile: get_valid_moves(
         data.game[tile[0]][tile[1]], tile, False), opponent_piece_tiles))
 
@@ -135,27 +131,24 @@ def is_move_giving_check(initial, final):
 
 
 def on_tile_click():
-    i, j = data.hovered_tile
-    print(data.hovered_tile)
-    tile1_player = get_piece_player(data.game[i][j])
-    # print(player, data.game[i][j])
 
-    if data.selected_tile == (None, None):
-        if(data.game[i][j] == -1):
-            return 0
-        elif(tile1_player != data.turn):
-            return 0
-        else:
-            data.selected_tile = (data.hovered_tile[0], data.hovered_tile[1])
+    selected_tile = data.selected_tile
+    hovered_tile = data.hovered_tile
+    hovered_tile_value = get_tile_value(hovered_tile)
+    hovered_tile_player = get_piece_player(hovered_tile_value)
+
+    if selected_tile == (None, None):
+        if hovered_tile_player == data.turn:
+            data.selected_tile = copy(hovered_tile)
     else:
-        if data.hovered_tile == data.selected_tile:
+        if hovered_tile == selected_tile:
             data.selected_tile = (None, None)
 
-        elif tile1_player != data.turn:
-            move_piece(data.selected_tile, data.hovered_tile)
+        elif hovered_tile_player != data.turn:
+            move_piece(selected_tile, hovered_tile)
 
         else:
-            data.selected_tile = (data.hovered_tile[0], data.hovered_tile[1])
+            data.selected_tile = copy.copy(hovered_tile)
 
 
 def set_tile_brightness(tile, brightness):
@@ -217,13 +210,10 @@ def update_tile_of_players():
 
 
 def update_game():
-    # print("updated")
     draw_board()
     pygame.display.update()
-    # print(valid_moves_called)
 
 
-print(data.is_running)
 while data.is_running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
