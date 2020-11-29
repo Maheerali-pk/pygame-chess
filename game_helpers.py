@@ -72,5 +72,8 @@ def get_king_tile():
 def swap_piece(initial, final):
     iy, ix = initial
     fy, fx = final
+    for i in [iy, ix, fy, fx]:
+        if i < 0 or i > 7:
+            return 0
     data.game[fy][fx] = data.game[iy][ix]
     data.game[iy][ix] = -1

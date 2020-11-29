@@ -32,7 +32,7 @@ def update_hovered_tile():
 def move_piece(initial, final):
     piece = get_tile_value(initial)
     valid_moves = get_valid_moves(piece, initial)
-
+    pawn_promotion = False
     # Check for castling
     if final in valid_moves:
 
@@ -53,18 +53,27 @@ def move_piece(initial, final):
                     rook_final = (initial[0], 3)
                 swap_piece(rook_initial, rook_final)
 
-        # Update king and rook move data
+        # KING
         if piece % 6 == 0:
             data.king_moved[data.turn] = True
+        # ROOK
         if piece % 2 == 0:
             if initial[0] == 0:
                 data.queen_side_rook_moved[data.turn] = True
             if initial[0] == 7:
                 data.king_side_rook_moved[data.turn] = True
 
+        # PAWN
+                # data.showing_promotion_menu = True
+
         data.selected_tile = (None, None)
 
         swap_piece(initial, final)
+        if piece % 5 == 0:
+            final_row = 0 if data.turn == 0 else 7
+            if final[0] == final_row:
+                # pawn_promotion = True
+                data.game[final[0]][final[1]] = 1 if data.turn == 0 else 7
         data.turn = int(not bool(data.turn))
         update_tile_of_players()
 
@@ -81,6 +90,7 @@ def get_valid_moves(piece, initial, check_free=True):
         dirs = add_opposite_dirs([(1, 0), (0, 1), (1, 1), (1, -1)])
         res = list(map(lambda d: add_tuples(d, initial), dirs))
         if check_free:
+            pass
             if can_castle(1):
                 res.append(add_tuples(initial, (0, 2)))
             if can_castle(-1):
@@ -138,8 +148,11 @@ def is_king_under_attack(king_tile):
     attacked_tiles = list(map(lambda tile: get_valid_moves(
         data.game[tile[0]][tile[1]], tile, False), opponent_piece_tiles))
 
-    for tile_list in attacked_tiles:
+    for i in range(0, len(attacked_tiles)):
+        tile_list = attacked_tiles[i]
         if king_tile in tile_list:
+            # print(data.game[3][6])
+            # print(king_tile, opponent_piece_tiles[i])
             return True
     return False
 
@@ -157,7 +170,6 @@ def is_move_giving_check(initial, final):
 def can_castle(dir):
     # Check if tiles between rook and king are empty
     king_tile = get_king_tile()
-    in_between_tiles = []
     if dir == 1:
         in_between_tiles = [add_tuples(
             king_tile, (0, 1)), add_tuples(king_tile, (0, 2))]
@@ -222,7 +234,26 @@ def set_tile_brightness(tile, brightness):
                      special_flags=pygame.BLEND_RGBA_SUB)
 
 
+def draw_promotion_menu():
+    y = SCREEN_HEIGHT/2 - (TILE_SIZE/2)
+    x = SCREEN_WIDTH/2 - (TILE_SIZE * 3)
+    for i in range(1, 5):
+        piece_value = i if data.turn == 0 else i + 6
+        x += TILE_SIZE
+        color = COLOR1 if i % 2 == 0 else COLOR2
+        draw.rect(data.screen, color, pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+        piece_image = images[piece_value]
+        image_x = x + (TILE_SIZE - PIECE_SIZE)/2
+        image_y = y + (TILE_SIZE - PIECE_SIZE)/2
+        data.screen.blit(piece_image, (image_x, image_y))
+
+
 def draw_board():
+    # draw.rect(data.screen, (0, 0, 0), pygame.Rect(
+    #     0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
+    # if data.showing_promotion_menu:
+    #     draw_promotion_menu()
+    #     # return 0
 
     # Get valid moves for selected tile
     selected_tile = data.selected_tile
@@ -264,6 +295,8 @@ def draw_board():
 
 
 def update_tile_of_players():
+    data.tiles_of_players[0] = []
+    data.tiles_of_players[1] = []
     for i in range(0, 8):
         for j in range(0, 8):
             tile_player = get_tile_player((i, j))
@@ -276,6 +309,7 @@ def update_game():
     pygame.display.update()
 
 
+update_tile_of_players()
 while data.is_running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:

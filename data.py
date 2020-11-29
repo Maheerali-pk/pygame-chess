@@ -20,5 +20,7 @@ class Data:
     king_side_rook_moved = [False, False]
     queen_side_rook_moved = [False, False]
 
+    showing_promotion_menu = False
+
 
 data = Data()
